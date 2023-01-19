@@ -30,6 +30,7 @@ export class AssetTransferContract extends Contract {
 
         const assetBytes = marshal(asset);
         await ctx.stub.putState(asset.ID, assetBytes);
+        await ctx.stub.putState(asset.ID, assetBytes);
 
         await setEndorsingOrgs(ctx, asset.ID, ctx.clientIdentity.getMSPID());
 
@@ -136,6 +137,31 @@ export class AssetTransferContract extends Contract {
         await setEndorsingOrgs(ctx, id, newOwnerOrg); // Subsequent updates must be endorsed by the new owning org
 
         ctx.stub.setEvent('TransferAsset', assetBytes);
+    }
+
+
+    @Transaction(false)
+    @Returns('string')
+    async GetAssetHistory(ctx: Context, id: string): Promise<string> {
+        const promiseOfIterator = ctx.stub.getHistoryForKey(id);
+        console.log('Got iterator back from getHistory for key');
+        const results = [];
+        for await (const keyMod of promiseOfIterator) {
+            const resp = {
+                timestamp: keyMod.timestamp,
+                txid: keyMod.txId,
+                data: ''
+            };
+            console.log(`CC- keymod is ${JSON.stringify(keyMod)}`);
+            if (keyMod.isDelete) {
+                resp.data = 'KEY DELETED';
+            } else {
+                resp.data = utf8Decoder.decode(keyMod.value);
+            }
+            results.push(resp);
+        }
+        console.log(results);
+        return JSON.stringify(results);
     }
 
     /**

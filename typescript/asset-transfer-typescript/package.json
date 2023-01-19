@@ -11,7 +11,7 @@
         "lint": "eslint ./src --ext .ts",
         "pretest": "npm run lint",
         "test": "",
-        "start": "set -x && fabric-chaincode-node start",
+        "start": "npm run start:server-nontls",
         "build": "tsc",
         "build:watch": "tsc -w",
         "prepublishOnly": "npm run build",
@@ -19,6 +19,8 @@
         "docker": "docker build -f ./Dockerfile -t asset-transfer-basic .",
         "package:caas": "npm run build && weft chaincode package caas --path . --label asset-transfer --address ${CHAINCODE_SERVER_ADDRESS} --archive asset-transfer-caas.tgz --quiet",
         "package:k8s": "npm run build && weft chaincode package caas --path . --label asset-transfer --address ${CHAINCODE_SERVER_ADDRESS} --archive asset-transfer-caas.tgz --quiet",
+        "package:debug": "./scripts/packagedebug.sh",
+        "start:fabric": "./scripts/runmf.sh",
         "start:server-nontls": "set -x && fabric-chaincode-node server --chaincode-address=$CHAINCODE_SERVER_ADDRESS --chaincode-id=$CHAINCODE_ID",
         "start:server-debug": "set -x && NODE_OPTIONS='--inspect=0.0.0.0:9229' fabric-chaincode-node server --chaincode-address=$CHAINCODE_SERVER_ADDRESS --chaincode-id=$CHAINCODE_ID",
         "start:server": "set -x && fabric-chaincode-node server --chaincode-address=$CHAINCODE_SERVER_ADDRESS --chaincode-id=$CHAINCODE_ID --chaincode-tls-key-file=/hyperledger/privatekey.pem --chaincode-tls-client-cacert-file=/hyperledger/rootcert.pem --chaincode-tls-cert-file=/hyperledger/cert.pem"
@@ -26,8 +28,10 @@
     "author": "Hyperledger",
     "license": "Apache-2.0",
     "dependencies": {
-        "fabric-contract-api": "^2.4.0",
-        "fabric-shim": "^2.4.0",
+        "fabric-contract-api": "file:fabric-contract-api-2.5.1.tgz",
+        "fabric-ledger": "file:fabric-ledger-2.5.1.tgz",
+        "fabric-shim": "file:fabric-shim-2.5.1.tgz",
+        "fabric-shim-api": "file:fabric-shim-api-2.5.1.tgz",
         "json-stringify-deterministic": "^1.0.7",
         "sort-keys-recursive": "^2.1.7"
     },
