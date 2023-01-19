@@ -6,3 +6,15 @@ An example of how to build Smart Contracts in GitHub Actions
 
 Each organization's Fabric Deployment Workflow would then pull in new versions of this packaged Smart Contract to run as needed
 
+
+## Workflow Overview
+
+Currently just a typescript example, but all would follow the same basic structure
+
+- _build_ the code as needed and run any unit tests
+- _publishdocker_ create the docker image for use with the k8s builder.   **Only on tagged**
+- _package_ create the Chaincode Package for instaling to a peer **Only on tagged**
+
+
+
+## Typesscript
