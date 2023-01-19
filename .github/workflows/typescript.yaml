@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
   
+env:
+  chaincode-label: assettx_ts
+  image-name: assettx
+  docker-registry: ghcr.io
 
 jobs:
   build:
@@ -33,7 +37,6 @@ jobs:
   publishdocker:
     runs-on: ubuntu-20.04
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
       packages: write
@@ -53,18 +56,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Login to the ${{ env.DOCKER_REGISTRY }} Container Registry
+      - name: Login to the ${{ env.docker-registry }} Container Registry
         uses: docker/login-action@v2
         with:
-          registry: ${{ env.DOCKER_REGISTRY }}
-          username: ${{ env.DOCKER_REGISTRY == 'docker.io' && secrets.DOCKERHUB_USERNAME || github.actor }}
-          password: ${{ env.DOCKER_REGISTRY == 'docker.io' && secrets.DOCKERHUB_TOKEN    || secrets.GITHUB_TOKEN }}
+          registry: ${{ env.docker-registry }}
+          username: ${{ env.docker-registry == 'docker.io' && secrets.DOCKERHUB_USERNAME || github.actor }}
+          password: ${{ env.docker-registry == 'docker.io' && secrets.DOCKERHUB_TOKEN    || secrets.GITHUB_TOKEN }}
 
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/fabric-nodeenv
+          images: ${{ env.docker-registry }}/${{ github.repository_owner }}/fabric-nodeenv
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -73,20 +76,41 @@ jobs:
         id: push
         uses: docker/build-push-action@v3
         with:
-          platforms: linux/amd64,linux/arm64
-          file: docker/fabric-nodeenv/Dockerfile
-          context: docker/fabric-nodeenv
+          platforms: linux/amd64
+          file: Dockerfile
+          context: typescript/asset-transfer-typescript
           tags: ${{ steps.meta.outputs.tags }}
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NODE_VER=${{ env.CHAINCODE_CONTAINER_NODE_VER }}    
 
 
-  contractpackage:
-    runs-on: ubuntu-20.04
-    needs: [publishdocker]
+  package:
+    if: inputs.chaincode-label != '' && needs.build.outputs.image_digest != ''
+    needs: build
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Output digest
-        run: |
-          echo ${{ needs.publishdocker.outputs.digest }}
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Create package
+      uses: hyperledgendary/package-k8s-chaincode-action@ba10aea43e3d4f7991116527faf96e3c2b07abc7
+      with:
+        chaincode-label: ${{ env.chaincode-label }}
+        chaincode-image: ${{ env.image-name }}
+        chaincode-digest: ${{ needs.build.outputs.image_digest }}
+
+    - name: Rename package
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: mv ${CHAINCODE_LABEL}.tgz ${CHAINCODE_LABEL}-${CHAINCODE_VERSION}.tgz
+      env:
+        CHAINCODE_LABEL: ${{ env.chaincode-label }}
+        CHAINCODE_VERSION: ${{ github.ref_name }}
+
+    - name: Upload package
+      run: gh release upload $GITHUB_REF_NAME ${CHAINCODE_LABEL}-${CHAINCODE_VERSION}.tgz
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CHAINCODE_LABEL: ${{ env.chaincode-label }}
+        CHAINCODE_VERSION: ${{ github.ref_name }}
