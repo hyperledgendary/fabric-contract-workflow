@@ -21,7 +21,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: typescript/asset-transfer-typescript
+        working-directory: asset-transfer-typescript
 
     strategy:
       matrix:
@@ -81,8 +81,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           platforms: linux/amd64
-          file: typescript/asset-transfer-typescript/Dockerfile   
-          context: typescript/asset-transfer-typescript   
+          file: asset-transfer-typescript/Dockerfile   
+          context: asset-transfer-typescript   
           tags: ${{ steps.meta.outputs.tags }}
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
