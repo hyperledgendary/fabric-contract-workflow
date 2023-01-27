@@ -103,7 +103,7 @@ jobs:
       uses: hyperledgendary/package-k8s-chaincode-action@ba10aea43e3d4f7991116527faf96e3c2b07abc7
       with:
         chaincode-label: ${{ env.chaincode-label }}
-        chaincode-image: ${{ env.image-name }}
+        chaincode-image:  ${{ env.docker-registry }}/${{ github.repository_owner }}/${{ env.image-name }}
         chaincode-digest: ${{ needs.publishdocker.outputs.image_digest }}
 
     - name: --debug
