@@ -10,8 +10,9 @@ on:
     tags:
       - "v2.*"
 
+# label should be RFC 1123 lowercase - and .
 env:
-  chaincode-label: assettx_ts
+  chaincode-label: assettxts
   image-name: assettx
   docker-registry: ghcr.io
 
