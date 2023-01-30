@@ -1,0 +1,128 @@
+name: Java Contract
+
+on:
+  push:
+    branches: [ main ] 
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  create:
+    tags:
+      - "v2.*"
+
+# label should be RFC 1123 lowercase - and .
+env:
+  chaincode-label: assettxprivate-java
+  image-name: assettxprivate
+  docker-registry: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: asset-tx-private-java
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: 'gradle'
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v1.0.5
+      - name: Build and Unit test
+        uses: gradle/gradle-build-action@v2.3.3
+        with:
+            build-root-directory: asset-tx-private-java
+            arguments: |
+              build shadowJar
+
+  publishdocker:
+    runs-on: ubuntu-20.04
+    needs: [build]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          buildkitd-flags: --debug
+          config-inline: |
+            [worker.oci]
+              max-parallelism = 1
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Login to the ${{ env.docker-registry }} Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.docker-registry }}
+          username: ${{ env.docker-registry == 'docker.io' && secrets.DOCKERHUB_USERNAME || github.actor }}
+          password: ${{ env.docker-registry == 'docker.io' && secrets.DOCKERHUB_TOKEN    || secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.docker-registry }}/${{ github.repository_owner }}/${{ env.image-name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}.{{minor}}.{{patch}}
+            type=sha
+      - name: Build and push ${{ matrix.COMPONENT }} Image
+        id: push
+        uses: docker/build-push-action@v3
+        with:
+          platforms: linux/amd64
+          file: asset-tx-private-java/Dockerfile   
+          context: asset-tx-private-java
+          tags: ${{ steps.meta.outputs.tags }}
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+
+  package:
+    needs: [build,publishdocker]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Create package
+      uses: hyperledgendary/package-k8s-chaincode-action@ba10aea43e3d4f7991116527faf96e3c2b07abc7
+      with:
+        chaincode-label: ${{ env.chaincode-label }}
+        chaincode-image:  ${{ env.docker-registry }}/${{ github.repository_owner }}/${{ env.image-name }}
+        chaincode-digest: ${{ needs.publishdocker.outputs.image_digest }}
+
+    - name: --debug
+      run: |
+        ls -lart
+
+    - name: Rename package
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: mv ${CHAINCODE_LABEL}.tgz ${CHAINCODE_LABEL}-${CHAINCODE_VERSION}.tgz
+      env:
+        CHAINCODE_LABEL: ${{ env.chaincode-label }}
+        CHAINCODE_VERSION: ${{ github.ref_name }}
+
+    - name: Upload package
+      run: gh release upload $GITHUB_REF_NAME ${CHAINCODE_LABEL}-${CHAINCODE_VERSION}.tgz
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CHAINCODE_LABEL: ${{ env.chaincode-label }}
+        CHAINCODE_VERSION: ${{ github.ref_name }}

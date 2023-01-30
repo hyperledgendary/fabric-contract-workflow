@@ -1,0 +1,17 @@
+
+
+# Ensure all properties are exported as shell env-vars
+set export
+
+# set the current directory, and the location of the test dats
+CWDIR := justfile_directory()
+
+_default:
+  @just -f {{justfile()}} --list
+
+microfab:
+  ./scripts/runmf.sh
+
+
+
+  
