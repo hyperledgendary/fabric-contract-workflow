@@ -119,10 +119,17 @@ jobs:
         CHAINCODE_LABEL: ${{ env.chaincode-label }}
         CHAINCODE_VERSION: ${{ github.ref_name }}
 
-    - name: Upload package
+    - name: Upload chaincode package
       run: gh release upload $GITHUB_REF_NAME ${CHAINCODE_LABEL}-${CHAINCODE_VERSION}.tgz
       if: startsWith(github.ref, 'refs/tags/v')
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         CHAINCODE_LABEL: ${{ env.chaincode-label }}
         CHAINCODE_VERSION: ${{ github.ref_name }}
+
+    - name: Upload Collections Configuration
+      run: gh release upload $GITHUB_REF_NAME asset-tx-private-java/collections_config.json
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
